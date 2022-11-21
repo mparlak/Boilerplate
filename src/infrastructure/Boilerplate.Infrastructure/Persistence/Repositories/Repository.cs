@@ -5,314 +5,371 @@ namespace Boilerplate.Infrastructure.Persistence.Repositories;
 
 public class Repository<TEntity>: IRepository<TEntity> where TEntity : class
 {
-     #region Fields
-
     private readonly DbContext _context;
 
-    #endregion
-
-    #region Ctor
-
-    protected Repository(DbContext context)
-    {
-        _context = context;
-    }
-
-    #endregion
-
-    #region Methods
-
-    /// <summary>
-    /// Get entity by identifier
-    /// </summary>
-    /// <param name="id">Identifier</param>
-    /// <returns>Entity</returns>
-    public virtual TEntity GetById(object id)
-    {
-        return _context.Set<TEntity>().Find(id);
-    }
-
-    /// <summary>
-    /// Get entity by identifier
-    /// </summary>
-    /// <param name="id">Identifier</param>
-    /// <returns>Entity</returns>
-    public virtual async Task<TEntity> GetByIdAsync(object id)
-    {
-        return await _context.Set<TEntity>().FindAsync(id);
-    }
-
-    /// <summary>
-    /// Insert entity
-    /// </summary>
-    /// <param name="entity">Entity</param>
-    public virtual void Insert(TEntity entity)
-    {
-        if (entity == null)
-            throw new ArgumentNullException(nameof(entity));
-
-        try
+        protected RepositoryBase(DbContext context)
         {
-            _context.Set<TEntity>().Add(entity);
-            _context.SaveChanges();
+            _context = context;
         }
-        catch (DbUpdateException exception)
+
+        /// <summary>
+        /// Get entity by identifier
+        /// </summary>
+        /// <param name="id">Identifier</param>
+        /// <returns>Entity</returns>
+        public virtual TEntity? GetById(object id)
         {
-            //ensure that the detailed error text is saved in the Log
-            throw new Exception(GetFullErrorTextAndRollbackEntityChanges(exception), exception);
+            return _context.Set<TEntity>().Find(id);
         }
-    }
 
-    /// <summary>
-    /// Insert entity
-    /// </summary>
-    /// <param name="entity">Entity</param>
-    public virtual async Task InsertAsync(TEntity entity)
-    {
-        if (entity == null)
-            throw new ArgumentNullException(nameof(entity));
-
-        try
+        /// <summary>
+        /// Get entity by identifier
+        /// </summary>
+        /// <param name="id">Identifier</param>
+        /// <returns>Entity</returns>
+        public virtual async Task<TEntity?> GetByIdAsync(object id)
         {
-            await _context.Set<TEntity>().AddAsync(entity);
+            return await _context.Set<TEntity>().FindAsync(id);
+        }
+
+        /// <summary>
+        /// Insert entity
+        /// </summary>
+        /// <param name="entity">Entity</param>
+        public virtual void Insert(TEntity entity)
+        {
+            if (entity == null)
+                throw new ArgumentNullException(nameof(entity));
+
+            try
+            {
+                _context.Set<TEntity>().Add(entity);
+                _context.SaveChanges();
+            }
+            catch (DbUpdateException)
+            {
+                //ensure that the detailed error text is saved in the Log
+                GetFullErrorTextAndRollbackEntityChanges();
+            }
+        }
+
+        /// <summary>
+        /// Insert entity
+        /// </summary>
+        /// <param name="entity">Entity</param>
+        public virtual Task InsertAsync(TEntity entity)
+        {
+            if (entity == null)
+            {
+                throw new ArgumentNullException(nameof(entity));
+            }
+
+            return InsertInternalAsync(entity);
+        }
+
+        /// <summary>
+        /// Insert entities
+        /// </summary>
+        /// <param name="entities">Entities</param>
+        public virtual void BulkInsert(IEnumerable<TEntity> entities)
+        {
+            if (entities == null)
+            {
+                throw new ArgumentNullException(nameof(entities));
+            }
+
+            try
+            {
+                _context.Set<TEntity>().AddRange(entities);
+                _context.SaveChanges();
+            }
+            catch (DbUpdateException)
+            {
+                //ensure that the detailed error text is saved in the Log
+                GetFullErrorTextAndRollbackEntityChanges();
+            }
+        }
+
+        /// <summary>
+        /// Insert entity
+        /// </summary>
+        /// <param name="entities">Entity</param>
+        public virtual Task BulkInsertAsync(IEnumerable<TEntity> entities)
+        {
+            if (entities == null)
+            {
+                throw new ArgumentNullException(nameof(entities));
+            }
+
+            return BulkInsertInternalAsync(entities);
+        }
+
+        /// <summary>
+        /// Update entity
+        /// </summary>
+        /// <param name="entity">Entity</param>
+        public virtual void Update(TEntity entity)
+        {
+            if (entity == null)
+            {
+                throw new ArgumentNullException(nameof(entity));
+            }
+
+            try
+            {
+                _context.Set<TEntity>().Update(entity);
+                _context.SaveChanges();
+            }
+            catch (DbUpdateException)
+            {
+                //ensure that the detailed error text is saved in the Log
+                GetFullErrorTextAndRollbackEntityChanges();
+            }
+        }
+
+        /// <summary>
+        /// Update entity
+        /// </summary>
+        /// <param name="entity">Entity</param>
+        public virtual Task UpdateAsync(TEntity entity)
+        {
+            if (entity == null)
+            {
+                throw new ArgumentNullException(nameof(entity));
+            }
+
+            return UpdateInternalAsync(entity);
+        }
+
+        /// <summary>
+        /// Update entities
+        /// </summary>
+        /// <param name="entities">Entities</param>
+        public virtual void BulkUpdate(IEnumerable<TEntity> entities)
+        {
+            if (entities == null)
+            {
+                throw new ArgumentNullException(nameof(entities));
+            }
+
+            try
+            {
+                _context.Set<TEntity>().UpdateRange(entities);
+                _context.SaveChanges();
+            }
+            catch (DbUpdateException)
+            {
+                //ensure that the detailed error text is saved in the Log
+                GetFullErrorTextAndRollbackEntityChanges();
+            }
+        }
+
+        /// <summary>
+        /// Update entities
+        /// </summary>
+        /// <param name="entities">Entities</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public virtual async Task BulkUpdateAsync(IEnumerable<TEntity> entities)
+        {
+            if (entities == null)
+            {
+                throw new KeyNotFoundException(nameof(entities));
+            }
+
+            try
+            {
+                _context.Set<TEntity>().UpdateRange(entities);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                //ensure that the detailed error text is saved in the Log
+                await GetFullErrorTextAndRollbackEntityChangesAsync();
+            }
+        }
+
+        /// <summary>
+        /// Delete entity
+        /// </summary>
+        /// <param name="entity">Entity</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public virtual void Delete(TEntity entity)
+        {
+            if (entity == null)
+            {
+                throw new ArgumentNullException(nameof(entity));
+            }
+
+            try
+            {
+                _context.Set<TEntity>().Remove(entity);
+                _context.SaveChanges();
+            }
+            catch (DbUpdateException)
+            {
+                //ensure that the detailed error text is saved in the Log
+                GetFullErrorTextAndRollbackEntityChanges();
+            }
+        }
+
+        /// <summary>
+        /// Delete entity
+        /// </summary>
+        /// <param name="entity">Entity</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="Exception"></exception>
+        public virtual Task DeleteAsync(TEntity entity)
+        {
+            if (entity == null)
+            {
+                throw new ArgumentNullException(nameof(entity));
+            }
+
+            return DeleteInternalAsync(entity);
+        }
+
+        /// <summary>
+        /// Delete entities
+        /// </summary>
+        /// <param name="entities">Entities</param>
+        public virtual void BulkDelete(IEnumerable<TEntity> entities)
+        {
+            if (entities == null)
+            {
+                throw new ArgumentNullException(nameof(entities));
+            }
+
+            try
+            {
+                _context.Set<TEntity>().RemoveRange(entities);
+                _context.SaveChanges();
+            }
+            catch (DbUpdateException)
+            {
+                //ensure that the detailed error text is saved in the Log
+                GetFullErrorTextAndRollbackEntityChanges();
+            }
+        }
+
+        /// <summary>
+        /// Gets a table
+        /// </summary>
+        public virtual IQueryable<TEntity> GetAll()
+        {
+            return _context.Set<TEntity>();
+        }
+
+        /// <summary>
+        /// Gets a table with "no tracking" enabled (EF feature) Use it only when you load record(s) only for read-only operations
+        /// </summary>
+        public virtual IQueryable<TEntity> GetAllAsNoTracking()
+        {
+            return _context.Set<TEntity>().AsNoTracking();
+        }
+
+        public virtual IQueryable<TEntity> GetAllWithPagination(int pageNumber, int pageSize)
+        {
+            return _context.Set<TEntity>().Skip((pageNumber - 1) * pageSize).Take(pageSize).AsNoTracking();
+        }
+
+
+        /// <summary>
+        /// context save
+        /// </summary>
+        public virtual async Task SaveAsync()
+        {
             await _context.SaveChangesAsync();
         }
-        catch (DbUpdateException exception)
-        {
-            //ensure that the detailed error text is saved in the Log
-            throw new Exception(await GetFullErrorTextAndRollbackEntityChangesAsync(exception), exception);
-        }
-    }
 
-    /// <summary>
-    /// Insert entities
-    /// </summary>
-    /// <param name="entities">Entities</param>
-    public virtual void Insert(IEnumerable<TEntity> entities)
-    {
-        if (entities == null)
+        private async Task BulkInsertInternalAsync(IEnumerable<TEntity> entities)
         {
-            throw new ArgumentNullException(nameof(entities));
+            try
+            {
+                await _context.Set<TEntity>().AddRangeAsync(entities);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                //ensure that the detailed error text is saved in the Log
+                await GetFullErrorTextAndRollbackEntityChangesAsync();
+            }
+        }
+        
+        private async Task InsertInternalAsync(TEntity entity)
+        {
+            try
+            {
+                await _context.Set<TEntity>().AddAsync(entity);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                //ensure that the detailed error text is saved in the Log
+                await GetFullErrorTextAndRollbackEntityChangesAsync();
+            }
+        }
+        
+        private async Task UpdateInternalAsync(TEntity entity)
+        {
+            try
+            {
+                _context.Set<TEntity>().Update(entity);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                //ensure that the detailed error text is saved in the Log
+                await GetFullErrorTextAndRollbackEntityChangesAsync();
+            }
+        }
+        
+        private async Task DeleteInternalAsync(TEntity entity)
+        {
+            try
+            {
+                _context.Set<TEntity>().Remove(entity);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                //ensure that the detailed error text is saved in the Log
+                await GetFullErrorTextAndRollbackEntityChangesAsync();
+            }
         }
 
-        try
+        /// <summary>
+        /// Rollback of entity changes and return full error message
+        /// </summary>
+        /// <returns>Error message</returns>
+        private void GetFullErrorTextAndRollbackEntityChanges()
         {
-            _context.Set<TEntity>().AddRange(entities);
+            //rollback entity changes
+            if (_context is { } dbContext)
+            {
+                var entries = dbContext.ChangeTracker.Entries()
+                    .Where(e => e.State is EntityState.Added or EntityState.Modified).ToList();
+
+                entries.ForEach(entry => entry.State = EntityState.Unchanged);
+            }
+
             _context.SaveChanges();
         }
-        catch (DbUpdateException exception)
-        {
-            //ensure that the detailed error text is saved in the Log
-            throw new Exception(GetFullErrorTextAndRollbackEntityChanges(exception), exception);
-        }
-    }
 
-    /// <summary>
-    /// Update entity
-    /// </summary>
-    /// <param name="entity">Entity</param>
-    public virtual void Update(TEntity entity)
-    {
-        if (entity == null)
+        /// <summary>
+        /// Rollback of entity changes and return full error message
+        /// </summary>
+        /// <returns>Error message</returns>
+        private async Task GetFullErrorTextAndRollbackEntityChangesAsync()
         {
-            throw new ArgumentNullException(nameof(entity));
-        }
+            //rollback entity changes
+            if (_context is { } dbContext)
+            {
+                var entries = dbContext.ChangeTracker.Entries()
+                    .Where(e => e.State is EntityState.Added or EntityState.Modified).ToList();
 
-        try
-        {
-            _context.Set<TEntity>().Update(entity);
-            _context.SaveChanges();
-        }
-        catch (DbUpdateException exception)
-        {
-            //ensure that the detailed error text is saved in the Log
-            throw new Exception(GetFullErrorTextAndRollbackEntityChanges(exception), exception);
-        }
-    }
+                entries.ForEach(entry => entry.State = EntityState.Unchanged);
+            }
 
-    /// <summary>
-    /// Update entity
-    /// </summary>
-    /// <param name="entity">Entity</param>
-    public virtual async Task UpdateAsync(TEntity entity)
-    {
-        if (entity == null)
-        {
-            throw new ArgumentNullException(nameof(entity));
-        }
-
-        try
-        {
-            _context.Set<TEntity>().Update(entity);
             await _context.SaveChangesAsync();
         }
-        catch (DbUpdateException exception)
-        {
-            //ensure that the detailed error text is saved in the Log
-            throw new Exception(await GetFullErrorTextAndRollbackEntityChangesAsync(exception), exception);
-        }
-    }
-
-    /// <summary>
-    /// Update entities
-    /// </summary>
-    /// <param name="entities">Entities</param>
-    public virtual void Update(IEnumerable<TEntity> entities)
-    {
-        if (entities == null)
-        {
-            throw new ArgumentNullException(nameof(entities));
-        }
-
-        try
-        {
-            _context.Set<TEntity>().UpdateRange(entities);
-            _context.SaveChanges();
-        }
-        catch (DbUpdateException exception)
-        {
-            //ensure that the detailed error text is saved in the Log
-            throw new Exception(GetFullErrorTextAndRollbackEntityChanges(exception), exception);
-        }
-    }
-
-    /// <summary>
-    /// Delete entity
-    /// </summary>
-    /// <param name="entity">Entity</param>
-    public virtual void Delete(TEntity entity)
-    {
-        if (entity == null)
-        {
-            throw new ArgumentNullException(nameof(entity));
-        }
-
-        try
-        {
-            _context.Set<TEntity>().Remove(entity);
-            _context.SaveChanges();
-        }
-        catch (DbUpdateException exception)
-        {
-            //ensure that the detailed error text is saved in the Log
-            throw new Exception(GetFullErrorTextAndRollbackEntityChanges(exception), exception);
-        }
-    }
-
-    /// <summary>
-    /// Delete entity
-    /// </summary>
-    /// <param name="entity">Entity</param>
-    public virtual async Task DeleteAsync(TEntity entity)
-    {
-        if (entity == null)
-        {
-            throw new ArgumentNullException(nameof(entity));
-        }
-
-        try
-        {
-            _context.Set<TEntity>().Remove(entity);
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateException exception)
-        {
-            //ensure that the detailed error text is saved in the Log
-            throw new Exception(await GetFullErrorTextAndRollbackEntityChangesAsync(exception), exception);
-        }
-    }
-
-    /// <summary>
-    /// Delete entities
-    /// </summary>
-    /// <param name="entities">Entities</param>
-    public virtual void Delete(IEnumerable<TEntity> entities)
-    {
-        if (entities == null)
-        {
-            throw new ArgumentNullException(nameof(entities));
-        }
-
-        try
-        {
-            _context.Set<TEntity>().RemoveRange(entities);
-            _context.SaveChanges();
-        }
-        catch (DbUpdateException exception)
-        {
-            //ensure that the detailed error text is saved in the Log
-            throw new Exception(GetFullErrorTextAndRollbackEntityChanges(exception), exception);
-        }
-    }
-
-    #endregion
-
-    #region Properties
-
-    /// <summary>
-    /// Gets a table
-    /// </summary>
-    public virtual IQueryable<TEntity> GetAll()
-    {
-        return _context.Set<TEntity>();
-    }
-
-    /// <summary>
-    /// Gets a table with "no tracking" enabled (EF feature) Use it only when you load record(s) only for read-only operations
-    /// </summary>
-    public virtual IQueryable<TEntity> GetAllAsNoTracking()
-    {
-        return _context.Set<TEntity>().AsNoTracking();
-    }
-
-    public virtual IQueryable<TEntity> GetAll(int pageNumber, int pageSize)
-    {
-        return _context.Set<TEntity>().Skip((pageNumber - 1) * pageSize).Take(pageSize).AsNoTracking();
-    }
-
-    #endregion
-
-    #region Utilities
-
-    /// <summary>
-    /// Rollback of entity changes and return full error message
-    /// </summary>
-    /// <param name="exception">Exception</param>
-    /// <returns>Error message</returns>
-    private string GetFullErrorTextAndRollbackEntityChanges(DbUpdateException exception)
-    {
-        //rollback entity changes
-        if (_context is DbContext dbContext)
-        {
-            var entries = dbContext.ChangeTracker.Entries()
-                .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified).ToList();
-
-            entries.ForEach(entry => entry.State = EntityState.Unchanged);
-        }
-
-        _context.SaveChanges();
-        return exception.ToString();
-    }
-
-    /// <summary>
-    /// Rollback of entity changes and return full error message
-    /// </summary>
-    /// <param name="exception">Exception</param>
-    /// <returns>Error message</returns>
-    private async Task<string> GetFullErrorTextAndRollbackEntityChangesAsync(DbUpdateException exception)
-    {
-        //rollback entity changes
-        if (_context is DbContext dbContext)
-        {
-            var entries = dbContext.ChangeTracker.Entries()
-                .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified).ToList();
-
-            entries.ForEach(entry => entry.State = EntityState.Unchanged);
-        }
-
-        await _context.SaveChangesAsync();
-        return exception.ToString();
-    }
-
-    #endregion
 }
